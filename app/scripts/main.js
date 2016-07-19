@@ -1,22 +1,91 @@
-$(document).ready(function() {
-	var users = ["ESL_SC2", "OgamingSC2", "cretetion", "freecodecamp", "storbeck", "habathcx", "RobotCaleb", "noobs2ninjas"];
-	var streams = [];
-	function getUserInfo(user) {};
-	function getStreamInfo(user){};
-    function processOneUser(element, index, array) {
+/*jslint unparam: true, es5: true */
+/*global $, document, alert */
 
-    }
+$(document).ready(function () {
+    'use strict';
+    var users = ["ESL_SC2", "OgamingSC2", "cretetion", "freecodecamp", "storbeck", "habathcx", "RobotCaleb", "noobs2ninjas", "customer404"],
+        viewDatas = []; // item : {display_name: 'xxx', index: 0, logo: 'xxx', status: 'xxx', url: 'xxx'}
 
     function render() {
+        viewDatas.forEach((element, index, array) => {
+            $("#media-list").append('            <li class="media">\
+              <div class="media-left">\
+                <a target="_blank" href="' + element.url + '">\
+                  <img class="media-object img-circle" src="' + element.logo +'" width="80" height="80" alt="logo"></a>\
+              </div>\
+              <div class="media-body">\
+                <h4 class="media-heading">' + element.display_name + '</h4>\
+                ' + element.status + '\
+              </div>\
+            </li>\
+');
+        });
     }
 
-    $(".btn-group .btn").click(function() {
+    $(".btn-group .btn").click(function () {
+        render();
+    });
+
+    $("#nameFilter").on('input', function () {
+        render();
+    });
+
+    function loadData() {
+        var requests = users.map((element, index, array) => {
+            return new Promise((resolve, reject) => {
+            $.ajax({
+                method: "GET",
+                url: "https://api.twitch.tv/kraken/channels/" + element,
+                dataType: "jsonp",
+                contentType: "application/vnd.twitchtv[.version]+json",
+                data: {}
+            })
+                .done(function (channel) {
+                    var viewData = {};
+                    viewData.index = index;
+                    if (channel.status === 404) {
+                        viewData.display_name = element;
+                        viewData.logo = "https://placehold.it/300x300?text=?";
+                        viewData.url = "#";
+                        viewData.status = "Account Not Found";
+                        resolve(viewData);
+                    } else {
+                        viewData.display_name = channel.display_name;
+                        viewData.logo = channel.logo;
+                        viewData.url = channel.url;
+                        $.ajax({
+                            method: "GET",
+                            url: "https://api.twitch.tv/kraken/streams/" + element,
+                            dataType: "jsonp",
+                            contentType: "application/vnd.twitchtv[.version]+json",
+                            data: {}
+                        })
+                            .done(function (stream) {
+                                if (stream.stream === null) {
+                                    viewData.status = "Offline";
+                                } else {
+                                    viewData.status = stream.stream.game + ":" + stream.stream.channel.status;
+                                }
+                                resolve(viewData);
+                            })
+                            .fail(function (jqXHR, textStatus) {
+                                reject(textStatus);
+                            });
+                    }
+                })
+                .fail(function (jqXHR, textStatus) {
+                    reject(textStatus);
+                });
+            })
+        });
+        return Promise.all(requests);
+    }
+
+
+    loadData().then((array) => {
+    	viewDatas = array;
     	render();
     });
 
-    $("#nameFilter").on('input',function() {
-    	console.log($(this).val());
-    });
-
-})
+});
 
